@@ -42,6 +42,7 @@ const questions = [
 // ---------------------------
 // Restore progress from sessionStorage
 // ---------------------------
+// Retrieve answers. Use an empty array as the default if 'progress' is not found.
 let userAnswers = JSON.parse(sessionStorage.getItem("progress")) || [];
 
 // DOM references
@@ -57,9 +58,10 @@ function renderQuestions() {
 
   questions.forEach((q, qIndex) => {
     const questionDiv = document.createElement("div");
+    questionDiv.style.marginBottom = "20px"; // Add some spacing for clarity
 
     const questionText = document.createElement("p");
-    questionText.textContent = q.question;
+    questionText.textContent = `${qIndex + 1}. ${q.question}`;
     questionDiv.appendChild(questionText);
 
     q.choices.forEach((choice) => {
@@ -69,20 +71,26 @@ function renderQuestions() {
       radio.type = "radio";
       radio.name = `question-${qIndex}`;
       radio.value = choice;
+      radio.id = `q${qIndex}-${choice.replace(/\s/g, '-')}`; // Unique ID for Cypress/Accessibility
 
-      // Restore checked state
+      // Restore checked state based on userAnswers array
       if (userAnswers[qIndex] === choice) {
         radio.checked = true;
       }
 
-      // Save progress to sessionStorage
+      // Save progress to sessionStorage on change
       radio.addEventListener("change", () => {
-        userAnswers[qIndex] = choice;
-        sessionStorage.setItem("progress", JSON.stringify(userAnswers));
+        // Only update if the radio is checked
+        if (radio.checked) {
+          userAnswers[qIndex] = choice;
+          // Store the updated array in sessionStorage
+          sessionStorage.setItem("progress", JSON.stringify(userAnswers));
+        }
       });
 
+      label.htmlFor = radio.id;
       label.appendChild(radio);
-      label.appendChild(document.createTextNode(choice));
+      label.appendChild(document.createTextNode(` ${choice}`));
 
       questionDiv.appendChild(label);
       questionDiv.appendChild(document.createElement("br"));
@@ -92,32 +100,39 @@ function renderQuestions() {
   });
 }
 
-// Initial render
+// Initial render of questions and answers
 renderQuestions();
 
 // ---------------------------
-// Submit Quiz
+// Submit Quiz functionality
 // ---------------------------
 submitButton.addEventListener("click", () => {
   let score = 0;
 
+  // 1. Calculate the score
   questions.forEach((q, index) => {
+    // Check if the stored answer for this question matches the correct answer
     if (userAnswers[index] === q.answer) {
       score++;
     }
   });
 
+  // 2. Display the score
   scoreElement.textContent = `Your score is ${score} out of 5.`;
 
-  // Save score to localStorage
+  // 3. Save score to localStorage
   localStorage.setItem("score", score);
+  
+  // Optional: Clear session storage progress after submission
+  sessionStorage.removeItem("progress");
 });
 
 // ---------------------------
-// Restore score from localStorage
+// Restore score from localStorage on page load
 // ---------------------------
+// This handles the edge case: User submits and refreshes the page
 const savedScore = localStorage.getItem("score");
 if (savedScore !== null) {
-  scoreElement.textContent = `Your score is ${savedScore} out of 5.`;
+  scoreElement.textContent = `Your last submitted score is ${savedScore} out of 5.`;
 }
 
